@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VITEC</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="style/w2ui-1.4.3.min.css">
+    <script src="/scripts/jquery-2.1.4.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="/scripts/w2ui-1.4.3.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="/scripts/chart.min.js" type="text/javascript" charset="utf-8"></script>
+</head>
+<body  style="margin: 0px;">
+    <div id="layout" style="position: absolute; left: 0px; right: 0px; top: 0px; bottom: 0px;">
+    </div>
+</body>
+<script>
+$(function () {
+    var pstyle = 'background-color: #F5F6F7; border: 1px solid #dfdfdf; padding: 5px;';
+    $('#layout').w2layout({
+        name: 'main_layout',
+        panels: [
+            { type: 'top', size: 100, resizable: true, style: pstyle },
+            { type: 'main', 
+                style: pstyle, 
+                tabs: { 
+                    active: 'tab2', 
+                    tabs: [
+                        { id: 'tab0', caption: 'Resultado' }, 
+                        { id: 'tab1', caption: 'Análisis' },
+                        { id: 'tab2', caption: 'Datos' }
+                    ],
+                    onClick: function(event){
+                        id_query = w2ui.form.record.querys === undefined ? "" : w2ui.form.record.querys.id;
+                        redibujar_main( id_query, event.target);
+                    }
+                }
+            }
+        ]
+    }); 
+    $.getJSON( "consultas.php")
+        .done( function (items_json) {
+            $('#form').w2form({
+                name: 'form',
+                style: 'background-color: #F5F6F7; border: 1px solid #dfdfdf; padding: 5px;', 
+                formHTML: 
+                    '<div class="w2ui-page page-0">'+
+                    '    <div class="w2ui-field">'+
+                    '        <label>Palabras Clave</label>'+
+                    '        <div><input name="query" type="text"  size=90 /><button class="btn" name="buscar">Buscar</button></div>'+
+                    '    </div>'+
+                    '    <div class="w2ui-field">'+
+                    '        <label>Consultas realizadas</label>'+
+                    '        <div> <input name="querys" type="list" size=90> </div>'+
+                    '    </div>'+
+                    '</div>',
+                fields: [
+                    { name: 'query', type: 'text', required: true },
+                    { name: 'querys', type: 'list', options: { items: items_json, selected: {}} }
+                ],
+                actions: {
+                    "buscar": function () { 
+                        var query = $("input[name='query']");
+                        query = query[0].value;
+                        var ventana = $('body');
+                        var consultar = $.getJSON("scrapy/nuevabusqueda.php?query="+query);
+                        w2utils.lock(ventana, 'Cargando ... ', true);
+                        $.when(consultar).done(function (consultar_json) {
+                            w2ui.form.fields[1].options.items.push(consultar_json);
+                            w2ui.form.render();
+                            w2utils.unlock(ventana);
+                        });                        
+                    },
+                },
+                onChange: function (event) {
+                    if (event.target == "querys") {
+                        redibujar_main(event.value_new.id, w2ui.main_layout.panels[1].tabs.active);
+                    };  
+                }
+            });
+            w2ui['main_layout'].content('top', w2ui['form']); 
+        });
+});
+
+function redibujar_main (id_query, tab) {
+    if (id_query === "") {
+        w2alert("Debe seleccionar una consulta almacenada o hacer una nueva.");
+    } else if (tab == 'tab0') {
+        var html_analisis = ''+
+            '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
+            '  <h1 style=" text-align: center;">Desplegar Resultados de ID '+id_query+'</h1>'+
+            '</div>';
+        w2ui['main_layout'].content('main', html_analisis);
+    } else if (tab == 'tab1') {
+        if (w2ui.datos_anio != undefined) {
+            w2ui.datos_anio.destroy();
+        }
+        if (w2ui.datos_autores != undefined) {
+            w2ui.datos_autores.destroy();
+        }
+        if (w2ui.datos_sitios != undefined) {
+            w2ui.datos_sitios.destroy();
+        }
+        var html_analisis = ''+
+            '<div id="estadisticas" style="width: 80%; margin: 0 auto; display: block;">'+
+            '  <h1 style=" text-align: center;">Análisis Estadístico</h1>'+
+            '  <h2>Producción por Año</h2>'+
+            '  <canvas id="grafAnios" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_anio" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Producción por Autor</h2>'+
+            '  <canvas id="grafAutores" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_autores" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Sitios</h2>'+
+            '  <canvas id="grafSitios" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_sitios" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '</div>';
+        w2ui['main_layout'].content('main', html_analisis);
+        var url = 'stats_resultados.php?campo=anio&id='+id_query;
+        $.getJSON(url).
+        done(function(resultado){
+            var min, max;
+            $.each(resultado, function(clave, valor) {
+                if (!isNaN(parseInt(clave))) {
+                    if (min === undefined) {
+                        min = parseInt(clave);
+                    } else {
+                        min = (parseInt(clave) < min ) ? parseInt(clave) : min;
+                    };
+                    if (max === undefined) {
+                        max = parseInt(clave);
+                    } else{
+                        max = (parseInt(clave) > max ) ? parseInt(clave) : max;
+                    };
+                }; 
+            });
+            var etiquetas = [];
+            for (var i = min; i <= max; i++) {
+                etiquetas.push(i);
+            };
+            var valores = [];
+            for (var i = etiquetas.length - 1; i >= 0; i--) {
+                valores[i] = resultado[etiquetas[i]] === undefined ? 0 : resultado[etiquetas[i]];
+            };
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.anio = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_anio').w2grid({
+                name: 'datos_anio',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'anio', caption: 'Año', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+            var data = {
+                labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My First dataset",
+                        fillColor: "rgba(220,220,220,0.2)",
+                        strokeColor: "rgba(220,220,220,1)",
+                        pointColor: "rgba(220,220,220,1)",
+                        pointStrokeColor: "#fff",
+                        pointHighlightFill: "#fff",
+                        pointHighlightStroke: "rgba(220,220,220,1)",
+                        data: valores
+                    }
+                ]
+            };
+            var ctx = $("#grafAnios").get(0).getContext("2d");
+            var grafAnios = new Chart(ctx).Line(data);
+        });
+        var url = 'stats_resultados.php?campo=autores&id='+id_query;
+        $.getJSON(url).
+        done(function (resultado) {
+            var etiquetas = [], datos = [], i = 1;
+            $.each(resultado, function(clave, valor) {
+                if (clave != "") {
+                    if ( i > 15) {
+                        return false;
+                    } else {
+                        etiquetas.push(clave);
+                        datos.push(valor);
+                        i++;
+                    };
+                };
+            });
+            var data = {
+            labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My Second dataset",
+                        fillColor: "rgba(151,187,205,0.5)",
+                        strokeColor: "rgba(151,187,205,0.8)",
+                        highlightFill: "rgba(151,187,205,0.75)",
+                        highlightStroke: "rgba(151,187,205,1)",
+                        data: datos
+                    }
+                ]
+            };
+            var ctx = $("#grafAutores").get(0).getContext("2d");
+            var grafAutores = new Chart(ctx).Bar(data);
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.autor = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_autores').w2grid({
+                name: 'datos_autores',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'autor', caption: 'Autor', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+        });
+        var url = 'stats_resultados.php?campo=sitios&id='+id_query;
+        $.getJSON(url).
+        done(function (resultado) {
+            var etiquetas = [], datos = [], i = 1;
+            $.each(resultado, function(clave, valor) {
+                if (clave != "") {
+                    if ( i > 15) {
+                        return false;
+                    } else {
+                        etiquetas.push(clave);
+                        datos.push(valor);
+                        i++;
+                    };
+                };
+            });
+            var data = {
+            labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My Second dataset",
+                        fillColor: "rgba(151,187,205,0.5)",
+                        strokeColor: "rgba(151,187,205,0.8)",
+                        highlightFill: "rgba(151,187,205,0.75)",
+                        highlightStroke: "rgba(151,187,205,1)",
+                        data: datos
+                    }
+                ]
+            };
+            var ctx = $("#grafSitios").get(0).getContext("2d");
+            var grafAutores = new Chart(ctx).Bar(data);
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.autor = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_sitios').w2grid({
+                name: 'datos_sitios',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'autor', caption: 'Autor', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+        });
+    } else{
+        $('#myGrid').w2grid({
+            name: 'myGrid',
+            header: 'Resultados',
+            show: {
+                toolbar: true,
+                footer: true
+            },
+            columns: [],
+            records: []
+        });
+        w2ui['main_layout'].content('main', w2ui['myGrid']);
+        var ventana = $('body');
+        w2utils.lock(ventana, 'Cargando ... ', true);
+        var campos = $.getJSON("resultados.php?campos=1&id="+id_query);
+        var registros = $.getJSON("resultados.php?id="+id_query);
+        $.when(campos, registros).done( function (campos_json, registros_json) {
+            if (campos_json[1] == "success" && registros_json[1] == "success") {
+                campos = [];
+                $.each( campos_json[0], function ( clave, valor ) {
+                    campo = '{ "field": "' + valor + '", "caption": "' + valor + '", "size": "7%" }';
+                    campos.push(JSON.parse(campo));  
+                });
+                campos[0].hidden = true;
+                campos[campos.length-1].hidden = true;
+                registros = []
+                $.each( registros_json[0], function ( clave, valor) {
+                    valor.recid = clave;
+                    registros.push(valor);    
+                });
+                w2ui.myGrid.columns = campos;
+                w2ui.myGrid.records = registros;
+                w2ui.myGrid.reload();
+            } else{
+                alert("Ha ocurrido un error");
+            };
+        });     
+        w2utils.unlock(ventana);
+    };
+}
+</script>
+</html>
