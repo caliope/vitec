@@ -73,6 +73,13 @@ function openPopUpLogin () {
                 	$.post('/usuarios.php', {email: this.record.usuario, contrasena: this.record.contrasena, autenticar: 1}).
                 	done(function (datos) {
                 		w2popup.close();
+                		w2ui['main_layout_top_toolbar'].remove('login');
+                		w2ui['main_layout_top_toolbar'].add([
+                			{ id: 'salir', type: 'button', caption: 'Salir' }
+                		]);
+                		w2ui['main_layout'].panels[2].size=250;
+                		w2ui['main_layout'].panels[2].resizable=true;
+                		w2ui['main_layout'].show('left');
                 	});
                 },
             }
