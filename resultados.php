@@ -1,4 +1,5 @@
 <?php
+	header('Content-Type: application/json; charset=utf-8');
 	//Se reccupera el id de la consulta almacenada
 	$id = $_GET["id"];
 	//Controla qué va a devolver campos de la coleccion o la colección 

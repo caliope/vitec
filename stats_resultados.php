@@ -1,4 +1,5 @@
 <?php
+ header('Content-Type: application/json; charset=utf-8');
  $id_query = $_GET['id'];
  $campo = $_GET['campo'];
  $mongo = new MongoClient();

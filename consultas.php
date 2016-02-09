@@ -1,4 +1,5 @@
 <?php
+	header('Content-Type: application/json; charset=utf-8');
     $mongo = new MongoClient();
     $db = $mongo->vitec;
     $coleccion = $db->consultas;
