@@ -25,18 +25,44 @@ $(document).ready(function() {
               		items: [
               			{ id: 'login', type: 'button', caption: 'Login' }
                 	],
+                	style: pstyle,
                 	onClick: function (event) {
             			if (event.target == "login") {
             				openPopUpLogin();
-            			};
+            			} else if (event.target == "salir") {
+            				$.get('/salida.php');
+                            w2ui['main_layout'].content('left', '');
+                            w2ui['main_layout'].hide('left');
+                            w2ui['main_layout'].content('main', '');
+                            w2ui['main_layout_top_toolbar'].show('login');
+                            w2ui['main_layout_top_toolbar'].remove('consultas');
+                            w2ui['main_layout_top_toolbar'].remove('salir');
+                            w2ui['main_layout'].hideTabs('main');
+            			} else if (event.target == "consultas:crearConsulta") {
+                            crear_consulta();
+                        };
             		}
         		}
             },
             { type: 'main', 
-                style: pstyle
+                style: pstyle, 
+                tabs: { 
+                    active: 'tab0', 
+                    tabs: [
+                        { id: 'tab0', caption: 'Información' },
+                        { id: 'tab1', caption: 'Resultado' }, 
+                        { id: 'tab2', caption: 'Análisis' },
+                        { id: 'tab3', caption: 'Datos' }
+                    ],
+                    onClick: function(event){
+                        redibujar_main( $(document).data('idQuery'), event.target);
+                    },
+                    style: pstyle
+                }                
             }
         ]
     });
+    w2ui['main_layout'].hideTabs('main');
 });
 
 function openPopUpLogin () {
@@ -72,15 +98,32 @@ function openPopUpLogin () {
                 	this.validate();
                 	$.post('/usuarios.php', {email: this.record.usuario, contrasena: this.record.contrasena, autenticar: 1}).
                 	done(function (datos) {
+                		// Cierra el dialogo y abre el panel izquierdo con las consultas del usuario
                 		w2popup.close();
-                		w2ui['main_layout_top_toolbar'].remove('login');
                 		w2ui['main_layout_top_toolbar'].add([
-                			{ id: 'salir', type: 'button', caption: 'Salir' }
+                			{ id: 'consultas', type: 'menu', caption: 'Consultas',
+                                items:[
+                                    { id: 'crearConsulta', text: 'Crear Consulta'}
+                                ]
+                            },
+                            { id: 'salir', type: 'button', caption: 'Salir' }
                 		]);
-                		w2ui['main_layout'].panels[2].size=250;
-                		w2ui['main_layout'].panels[2].resizable=true;
+                		w2ui['main_layout'].panels[2].size = 250;
+                		w2ui['main_layout'].panels[2].resizable = true;
+                		w2ui['main_layout'].panels[2].style = 'background-color: #f1f1f1; border: 1px solid #dfdfdf; padding: 5px;';
+                		w2ui['main_layout'].refresh();
+                		w2ui['main_layout_top_toolbar'].hide('login');
                 		w2ui['main_layout'].show('left');
-                	});
+                		//Crea la tabla para mostrar las consultas en el panel izquierdo
+                		creaTabla();
+                	}).
+                    fail(function (respuesta, estado, errorThrown) {
+                        if (typeof(respuesta.responseJSON)  === 'undefined') {
+                            respuesta.responseJSON = JSON.parse('{"error": "El servidor no responde"}');
+                        };
+                        w2popup.close();
+                        w2alert('Error: ' + respuesta.responseJSON.error, 'Notificacion');
+                    });
                 },
             }
         });
@@ -146,12 +189,27 @@ function openPopUpRegistro () {
                     <button class="btn" name="grabar">Grabar</button> \
                 </div>',
             fields: [
+                { field: 'nombres', type: 'text', required: true },
+                { field: 'apellidos', type: 'text', required: true },
                 { field: 'usuario', type: 'text', required: true },
                 { field: 'contrasena', type: 'text', required: true }
             ],
             actions: {
                 "cancel": function () { w2popup.close(); },
-                "grabar": function () { this.validate(); },
+                "grabar": function () { 
+                			this.validate();
+                			$.post(
+                				'/usuarios.php', 
+                				{ 	nombres: this.record.nombres, 
+                					apellidos: this.record.apellidos,  
+                					email: this.record.usuario,
+                					contrasena: this.record.contrasena 
+                				}, 
+                				function(data, textStatus, xhr) {
+                					w2popup.close();
+                					openPopUpLogin();
+                			});
+                		  },
             }
         });
     }
@@ -178,5 +236,455 @@ function openPopUpRegistro () {
     });
 }
 
+function redibujar_main (id_query, tab) {
+    if (id_query === "" || id_query === undefined) {
+        w2alert("Debe seleccionar una consulta almacenada o hacer una nueva.");
+    } else if (tab == 'tab0') {
+        var html_analisis = ''+
+            '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
+            '  <h1 style=" text-align: center;">Desplegar Resultados de ID '+id_query+'</h1>'+
+            '</div>';
+        w2ui['main_layout'].content('main', html_analisis);
+    } else if (tab == 'tab1') {
+        var html_analisis = ''+
+            '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
+            '  <h1 style=" text-align: center;">Desplegar Resultados de ID '+id_query+'</h1>'+
+            '</div>';
+        w2ui['main_layout'].content('main', html_analisis);
+    } else if (tab == 'tab2') {
+        if (w2ui.datos_anio != undefined) {
+            w2ui.datos_anio.destroy();
+        }
+        if (w2ui.datos_autores != undefined) {
+            w2ui.datos_autores.destroy();
+        }
+        if (w2ui.datos_sitios != undefined) {
+            w2ui.datos_sitios.destroy();
+        }
+        if (w2ui.datos_frecuencia != undefined) {
+            w2ui.datos_frecuencia.destroy();
+        }
+        var html_analisis = ''+
+            '<div id="estadisticas" style="width: 80%; margin: 0 auto; display: block;">'+
+            '  <h1 style=" text-align: center;">Análisis Estadístico</h1>'+
+            '  <h2>Producción por Año</h2>'+
+            '  <canvas id="grafAnios" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_anio" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Producción por Autor</h2>'+
+            '  <canvas id="grafAutores" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_autores" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Sitios</h2>'+
+            '  <canvas id="grafSitios" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_sitios" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Frecuencia de Palabras</h2>'+
+            '  <canvas id="grafFrecuencia" style="height: 400px; width: 800px; display: inline-block;"></canvas>'+
+            '  <div id="datos_frecuencia" style="height: 400px; width: 200px; display: inline-block;"></div>'+
+            '  <h2>Nube de Palabras</h2>'+
+            '  <div id="nube" style=" display: inline-block;">'+
+            '    <img id="img_nube">'+
+            '  </div>'+
+            '  <h2>Dendograma Textos </h2>'+
+            '  <div id="dendograma" style=" display: inline-block;">'+
+            '    <img id="img_dendograma">'+
+            '  </div>'+
+            '  <h2>Cluster Textos </h2>'+
+            '  <div id="cluster" style=" display: inline-block;">'+
+            '    <img id="img_cluster">'+
+            '  </div>'+
+            '</div>';
+        w2ui['main_layout'].content('main', html_analisis);
+        var url = 'stats_resultados.php?campo=anio&id='+id_query;
+        $.getJSON(url).
+        done(function(resultado){
+            var min, max;
+            $.each(resultado, function(clave, valor) {
+                if (!isNaN(parseInt(clave))) {
+                    if (min === undefined) {
+                        min = parseInt(clave);
+                    } else {
+                        min = (parseInt(clave) < min ) ? parseInt(clave) : min;
+                    };
+                    if (max === undefined) {
+                        max = parseInt(clave);
+                    } else{
+                        max = (parseInt(clave) > max ) ? parseInt(clave) : max;
+                    };
+                }; 
+            });
+            var etiquetas = [];
+            min = (max - min) > 15 ? (max - 15) : min;
+            for (var i = min; i <= max; i++) {
+                etiquetas.push(i);
+            };
+            var valores = [];
+            for (var i = etiquetas.length - 1; i >= 0; i--) {
+                valores[i] = resultado[etiquetas[i]] === undefined ? 0 : resultado[etiquetas[i]];
+            };
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.anio = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_anio').w2grid({
+                name: 'datos_anio',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'anio', caption: 'Año', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+            var data = {
+                labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My First dataset",
+                        fillColor: "rgba(220,220,220,0.2)",
+                        strokeColor: "rgba(220,220,220,1)",
+                        pointColor: "rgba(220,220,220,1)",
+                        pointStrokeColor: "#fff",
+                        pointHighlightFill: "#fff",
+                        pointHighlightStroke: "rgba(220,220,220,1)",
+                        data: valores
+                    }
+                ]
+            };
+            var ctx = $("#grafAnios").get(0).getContext("2d");
+            var grafAnios = new Chart(ctx).Line(data);
+        });
+        var url = 'stats_resultados.php?campo=autores&id='+id_query;
+        $.getJSON(url).
+        done(function (resultado) {
+            var etiquetas = [], datos = [], i = 1;
+            $.each(resultado, function(clave, valor) {
+                if (clave != "") {
+                    if ( i > 15) {
+                        return false;
+                    } else {
+                        etiquetas.push(clave);
+                        datos.push(valor);
+                        i++;
+                    };
+                };
+            });
+            var data = {
+            labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My Second dataset",
+                        fillColor: "rgba(151,187,205,0.5)",
+                        strokeColor: "rgba(151,187,205,0.8)",
+                        highlightFill: "rgba(151,187,205,0.75)",
+                        highlightStroke: "rgba(151,187,205,1)",
+                        data: datos
+                    }
+                ]
+            };
+            var ctx = $("#grafAutores").get(0).getContext("2d");
+            var grafAutores = new Chart(ctx).Bar(data);
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.autor = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_autores').w2grid({
+                name: 'datos_autores',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'autor', caption: 'Autor', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+        });
+        var url = 'stats_resultados.php?campo=sitios&id='+id_query;
+        $.getJSON(url).
+        done(function (resultado) {
+            var etiquetas = [], datos = [], i = 1;
+            $.each(resultado, function(clave, valor) {
+                if (clave != "") {
+                    if ( i > 15) {
+                        return false;
+                    } else {
+                        etiquetas.push(clave);
+                        datos.push(valor);
+                        i++;
+                    };
+                };
+            });
+            var data = {
+            labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My Second dataset",
+                        fillColor: "rgba(151,187,205,0.5)",
+                        strokeColor: "rgba(151,187,205,0.8)",
+                        highlightFill: "rgba(151,187,205,0.75)",
+                        highlightStroke: "rgba(151,187,205,1)",
+                        data: datos
+                    }
+                ]
+            };
+            var ctx = $("#grafSitios").get(0).getContext("2d");
+            var grafAutores = new Chart(ctx).Bar(data);
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.autor = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_sitios').w2grid({
+                name: 'datos_sitios',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'autor', caption: 'Autor', size: '50%' },
+                    { field: 'total', caption: 'Producción', size: '50%' }
+                ],
+                records: registros
+            });
+        });
+        var url ='R_frecuencia_palabras.php?id_query='+id_query;
+        $.getJSON(url).
+        done(function (resultado) {
+            var etiquetas = [], datos = [], i = 1;
+            $.each(resultado, function(clave, valor) {
+                if (clave != "") {
+                    if ( i > 15) {
+                        return false;
+                    } else {
+                        etiquetas.push(clave);
+                        datos.push(valor);
+                        i++;
+                    };
+                };
+            });
+            var data = {
+            labels: etiquetas,
+                datasets: [
+                    {
+                        label: "My Second dataset",
+                        fillColor: "rgba(151,187,205,0.5)",
+                        strokeColor: "rgba(151,187,205,0.8)",
+                        highlightFill: "rgba(151,187,205,0.75)",
+                        highlightStroke: "rgba(151,187,205,1)",
+                        data: datos
+                    }
+                ]
+            };
+            var ctx = $("#grafFrecuencia").get(0).getContext("2d");
+            var grafAutores = new Chart(ctx).Bar(data);
+            var i = 1;
+            var registros = $.map( resultado, function(item, index) {
+                var record = new Object();
+                record.recid = i++;
+                record.autor = index;
+                record.total = item;
+                return record;
+            });
+            $('#datos_frecuencia').w2grid({
+                name: 'datos_frecuencia',
+                show: {
+                    toolbar: false,
+                    footer: false
+                },
+                columns: [             
+                    { field: 'autor', caption: 'Palabra', size: '50%' },
+                    { field: 'total', caption: 'Frecuencia', size: '50%' }
+                ],
+                records: registros
+            });
+        });
+        var url ='R_nube_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_nube").attr("src", ruta);
+        });
+        var url ='R_dendograma_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_dendograma").attr("src", ruta);
+        });
+        var url ='R_cluster_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_cluster").attr("src", ruta);
+        });
+    } else if ( tab == 'tab3') {
+        $('#myGrid').w2grid({
+            name: 'myGrid',
+            header: 'Resultados',
+            show: {
+                toolbar: true,
+                footer: true
+            },
+            columns: [],
+            records: []
+        });
+        w2ui['main_layout'].content('main', w2ui['myGrid']);
+        var ventana = $('body');
+        w2utils.lock(ventana, 'Cargando ... ', true);
+        var campos = $.getJSON("resultados.php?campos=1&id="+id_query);
+        var registros = $.getJSON("resultados.php?id="+id_query);
+        $.when(campos, registros).done( function (campos_json, registros_json) {
+            if (campos_json[1] == "success" && registros_json[1] == "success") {
+                campos = [];
+                $.each( campos_json[0], function ( clave, valor ) {
+                    campo = '{ "field": "' + valor + '", "caption": "' + valor + '", "size": "7%" }';
+                    campos.push(JSON.parse(campo));  
+                });
+                campos[0].hidden = true;
+                campos[campos.length-1].hidden = true;
+                registros = []
+                $.each( registros_json[0], function ( clave, valor) {
+                    valor.recid = clave;
+                    registros.push(valor);    
+                });
+                w2ui.myGrid.columns = campos;
+                w2ui.myGrid.records = registros;
+                w2ui.myGrid.reload();
+            } else{
+                alert("Ha ocurrido un error");
+            };
+        });     
+        w2utils.unlock(ventana);
+    };
+}
+
+function crear_consulta () {
+    if (!w2ui.crear_consulta_form) {
+        $().w2form({
+            name: 'crear_consulta_form',
+            style: 'border: 0px; background-color: transparent;',
+            formHTML: 
+                '<div class="w2ui-page page-0"> \
+                    <div class="w2ui-field"> \
+                        <label>Consulta:</label> \
+                        <div> \
+                           <input name="consulta" type="text" maxlength="100" style="width: 450px"/> \
+                        </div> \
+                    </div> \
+                </div> \
+                <div class="w2ui-buttons"> \
+                    <button class="btn" name="cancel">Cancelar</button> \
+                    <button class="btn" name="crear">Crear</button> \
+                </div>',
+            fields: [
+                { field: 'consulta', type: 'text', required: true }
+            ],
+            actions: {
+                "cancel": function () { w2popup.close(); },
+                "crear": function () { 
+                            this.validate();
+                            $.get(
+                                '/scrapy/nuevabusqueda.php', 
+                                {	query: this.record.consulta 
+                                }, 
+                                function(data, textStatus, xhr) {
+                                    w2popup.close();
+                                    creaTabla();
+                            });
+                          },
+            }
+        });
+    }
+    $().w2popup('open', {
+        title   : 'Crear Consulta',
+        body    : '<div id="form" style="width: 100%; height: 100%;"></div>',
+        style   : 'padding: 15px 0px 0px 0px',
+        width   : 650,
+        height  : 250, 
+        showMax : false,
+        modal   : true,
+        onToggle: function (event) {
+            $(w2ui.crear_consulta_form.box).hide();
+            event.onComplete = function () {
+                $(w2ui.crear_consulta_form.box).show();
+                w2ui.crear_consulta_form.resize();
+            }
+        },
+        onOpen: function (event) {
+            event.onComplete = function () {
+                $('#w2ui-popup #form').w2render('crear_consulta_form');
+            }
+        }
+    });
+}
+
+// Funcion crea tabla consultas de los usuarios 
+function creaTabla () {
+	if ( w2ui.tabla != undefined ) { w2ui.tabla.destroy(); };
+	$.getJSON('/consultas.php', function (consultas_json) {
+        $.each(consultas_json, function(index, val) {
+        	consultas_json[index].recid = index + 1;
+        });
+        $('#tabla').w2grid({
+        	name: 'tabla',
+			header: 'Consultas',
+			show: {
+				header: true,
+				footer: true
+			},
+			columns: [
+				{ field: 'recid', caption: 'N°', size: '15%' },
+	        	{ field: 'text', caption: 'Consulta', size: '85%' },
+				{ field: 'id', caption: 'id', hidden: true }
+			],
+			records: consultas_json,
+            onSelect: function(event) {
+                var registro = w2ui['tabla'].get(event.recid);
+                $(document).data('idQuery', registro.id);
+                redibujar_main($(document).data('idQuery'), w2ui['main_layout_main_tabs'].active);
+            },
+            onContextMenu: function(event) {
+                var id_registro = event.recid;
+                var div_registro = '#grid_tabla_rec_'+event.recid;
+                $(div_registro).w2menu({
+                    items: [
+                        { id: 1, text: 'Borrar', icon: 'icon-page' }
+                    ],
+                    onSelect: function (event) {
+                        var recid = id_registro;
+                        var id = w2ui.tabla.records[recid-1].id;
+                            $.ajax({
+                                url: '/consultas.php',
+                                type: 'DELETE',
+                                data: { 'id': id},
+                            })
+                            .done(function() {
+                            	console.log("success");
+                            	creaTabla();
+                            })
+                            .fail(function() {
+                            	console.log("error");
+                            });
+                    }
+                });
+            }   
+		});
+		w2ui['main_layout'].content('left', w2ui['tabla']);
+        w2ui['main_layout'].showTabs('main');
+        w2ui['main_layout'].refresh();
+        var registro = w2ui['tabla'].get(1);
+        $(document).data('idQuery', registro.id);
+        redibujar_main($(document).data('idQuery'), 'tab0');
+    });
+}
 </script>
 </html>

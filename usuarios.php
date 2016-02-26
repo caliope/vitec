@@ -11,18 +11,22 @@
 			if (is_null($usuario)) {
 				# Usuario no existe
 				$resultado = array('error' => 'Usuario no existe');
+				$encabezado = 'HTTP/1.1 401 User not exist';
 			} else {
 				# Verifica que la clave coincida
 				$contrasenaMd5 = md5($_POST['contrasena']);
 				if ($contrasenaMd5 === $usuario["contrasena"]) {
 				 	$resultado = array('resultado' => 'Ok');
+				 	$encabezado = 'HTTP/1.1 204 No content';
 				 	session_start();
 				 	$_SESSION['usuario'] = $usuario["email"];
 				 } else {
 				 	# Contrasena errada
 					$resultado = array('error' => 'Contraseña incorrecta');
+					$encabezado = 'HTTP/1.1 401 Password not match';
 				 }  
 			}
+			header($encabezado);
 			header('Content-Type: application/json; charset=utf-8');
 			echo json_encode($resultado);
 		} else {
@@ -34,7 +38,7 @@
 				'contrasena' => md5($_POST['contrasena'])
 			);
 			$coleccion->insert($usuario);
-			# Redireccionar
+			header('HTTP/1.1 201 User created');
 		}
 	} else {
 		header('HTTP/1.1 405 Method Not Allowed');
