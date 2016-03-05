@@ -9,15 +9,19 @@
 			$mongo = new MongoClient();
 	    	$db = $mongo->vitec;
 	    	$coleccion = $db->consultas;
-	    	$filtro = array( 'mail' => $_SESSION['usuario'] );
-	    	$cursor = $coleccion->find($filtro);
-	    	$items = array();
-			foreach ($cursor as $id => $valor) {
-				$consulta = array();
-				$consulta['id'] = $id;
-				$consulta['text'] = $valor['query'];
-				$items[] = $consulta;
-			}
+	    	if (isset($_GET['id'])) {
+	    		$items = $coleccion->findOne(array('_id' => new MongoId($_GET['id'])));
+	    	} else {
+	    		$filtro = array( 'mail' => $_SESSION['usuario'] );
+		    	$cursor = $coleccion->find($filtro);
+		    	$items = array();
+				foreach ($cursor as $id => $valor) {
+					$consulta = array();
+					$consulta['id'] = $id;
+					$consulta['text'] = $valor['query'];
+					$items[] = $consulta;
+				}	
+	    	}
 			echo json_encode($items);		
 		} elseif ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
 			parse_str(file_get_contents("php://input"),$post_vars);
@@ -35,7 +39,7 @@
 		}
 	} else {
 		# Error de autenticación
-		header('HTTP/1.1 401 Method Not Allowed');
+		header('HTTP/1.1 401 Unauthorized');
 		$respuesta = array( 'error' => array( 'descripcion' => 'No se ha iniciado sesion de usuario.'));
 		echo json_encode($respuesta);
 	}

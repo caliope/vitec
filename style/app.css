@@ -1,0 +1,17 @@
+.tabla_datos {
+  border-collapse: collapse;
+  font: normal 12px verdana, arial, helvetica, sans-serif;
+}
+
+.tabla_datos th{
+  text-transform: uppercase;
+  background-color: #f1f1f1;
+}
+
+.tabla_datos  tr:nth-child(odd)  {
+  background-color: #ffffff;
+}
+
+.tabla_datos  tr:nth-child(even)  {
+  background-color: #f1f1f1;
+}

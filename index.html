@@ -360,21 +360,21 @@ function redibujar_main (id_query, tab) {
                 records: registros
             });
         });
-		var url ='R_nube_palabras.php?id_query='+id_query;
-		$.get(url).
-		done(function (ruta) {
-			$("#img_nube").attr("src", ruta);
-		});
-		var url ='R_dendograma_palabras.php?id_query='+id_query;
-		$.get(url).
-		done(function (ruta) {
-			$("#img_dendograma").attr("src", ruta);
-		});
-		var url ='R_cluster_palabras.php?id_query='+id_query;
-		$.get(url).
-		done(function (ruta) {
-			$("#img_cluster").attr("src", ruta);
-		});
+        var url ='R_nube_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_nube").attr("src", ruta);
+        });
+        var url ='R_dendograma_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_dendograma").attr("src", ruta);
+        });
+        var url ='R_cluster_palabras.php?id_query='+id_query;
+        $.get(url).
+        done(function (ruta) {
+            $("#img_cluster").attr("src", ruta);
+        });
     } else{
         $('#myGrid').w2grid({
             name: 'myGrid',

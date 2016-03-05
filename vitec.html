@@ -4,6 +4,7 @@
     <title>VITEC</title>
     <meta charset="utf-8">
     <link rel="stylesheet" href="style/w2ui-1.4.3.min.css">
+    <link rel="stylesheet" href="style/app.css">
     <script src="/scripts/jquery-2.1.4.min.js" type="text/javascript" charset="utf-8"></script>
     <script src="/scripts/w2ui-1.4.3.min.js" type="text/javascript" charset="utf-8"></script>
     <script src="/scripts/chart.min.js" type="text/javascript" charset="utf-8"></script>
@@ -38,6 +39,7 @@ $(document).ready(function() {
                             w2ui['main_layout_top_toolbar'].remove('consultas');
                             w2ui['main_layout_top_toolbar'].remove('salir');
                             w2ui['main_layout'].hideTabs('main');
+                            w2ui.loginform.destroy();
             			} else if (event.target == "consultas:crearConsulta") {
                             crear_consulta();
                         };
@@ -195,7 +197,10 @@ function openPopUpRegistro () {
                 { field: 'contrasena', type: 'text', required: true }
             ],
             actions: {
-                "cancel": function () { w2popup.close(); },
+                "cancel": function () { 
+                			w2popup.close();
+                			w2ui.registroform.destroy(); 
+                		  },
                 "grabar": function () { 
                 			this.validate();
                 			$.post(
@@ -207,6 +212,7 @@ function openPopUpRegistro () {
                 				}, 
                 				function(data, textStatus, xhr) {
                 					w2popup.close();
+                					w2ui.registroform.destroy();
                 					openPopUpLogin();
                 			});
                 		  },
@@ -237,14 +243,42 @@ function openPopUpRegistro () {
 }
 
 function redibujar_main (id_query, tab) {
+	if (w2ui.main_layout_main_tabs.active != tab) {
+		w2ui.main_layout_main_tabs.active = tab;
+		w2ui.main_layout_main_tabs.refresh();
+	};
     if (id_query === "" || id_query === undefined) {
         w2alert("Debe seleccionar una consulta almacenada o hacer una nueva.");
     } else if (tab == 'tab0') {
-        var html_analisis = ''+
-            '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
-            '  <h1 style=" text-align: center;">Desplegar Resultados de ID '+id_query+'</h1>'+
-            '</div>';
-        w2ui['main_layout'].content('main', html_analisis);
+    	$.get('/consultas.php', { 'id': id_query})
+    	.done(function (registro) {
+    		var html = '';
+    		html = 	'<br> \
+    				<div style=" text-align: -moz-center; "> \
+    				<table class="tabla_datos"> \
+		    			<thead> \
+		    				<tr> \
+		    					<th style="text-align: center;" colspan="2"><h1>Consulta: '+registro.query+'</h1></th> \
+		    				</tr> \
+		    			</thead> \
+		    			<tbody> \
+		    				<tr> \
+		    					<td><strong>ID</strong></td> \
+		    					<td>'+registro._id["$id"]+'</td> \
+		    				</tr> \
+		    				<tr> \
+		    					<td><strong>Campos</strong></td> \
+		    					<td>'+registro.campos.toString().replace(/,/g, '<br>')+'</td> \
+		    				</tr> \
+		    				<tr> \
+		    					<td><strong>Registros recuperados</strong></td> \
+		    					<td>'+registro.contador+'</td> \
+		    				</tr> \
+		    			</tbody> \
+		    		</table> \
+		    		</div>';
+    		w2ui.main_layout.content('main', html); 
+    	});
     } else if (tab == 'tab1') {
         var html_analisis = ''+
             '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
@@ -567,6 +601,7 @@ function redibujar_main (id_query, tab) {
     };
 }
 
+//Funcion crea una nueva consulta y recarga la tabla de consultas del usuario
 function crear_consulta () {
     if (!w2ui.crear_consulta_form) {
         $().w2form({
@@ -592,13 +627,15 @@ function crear_consulta () {
                 "cancel": function () { w2popup.close(); },
                 "crear": function () { 
                             this.validate();
+                            w2popup.lock('Creando consulta ...', true);
                             $.get(
                                 '/scrapy/nuevabusqueda.php', 
                                 {	query: this.record.consulta 
                                 }, 
                                 function(data, textStatus, xhr) {
-                                    w2popup.close();
                                     creaTabla();
+                                    w2popup.unlock();
+                                    w2popup.close();
                             });
                           },
             }
@@ -637,6 +674,7 @@ function creaTabla () {
         $('#tabla').w2grid({
         	name: 'tabla',
 			header: 'Consultas',
+			multiSelect: false,
 			show: {
 				header: true,
 				footer: true
@@ -652,6 +690,11 @@ function creaTabla () {
                 $(document).data('idQuery', registro.id);
                 redibujar_main($(document).data('idQuery'), w2ui['main_layout_main_tabs'].active);
             },
+		    onClick: function(event) {
+		        if (event.recid == w2ui.tabla.getSelection()[0]) {
+		        	event.preventDefault();	
+		        };
+		    },  
             onContextMenu: function(event) {
                 var id_registro = event.recid;
                 var div_registro = '#grid_tabla_rec_'+event.recid;
@@ -668,7 +711,6 @@ function creaTabla () {
                                 data: { 'id': id},
                             })
                             .done(function() {
-                            	console.log("success");
                             	creaTabla();
                             })
                             .fail(function() {
@@ -686,5 +728,6 @@ function creaTabla () {
         redibujar_main($(document).data('idQuery'), 'tab0');
     });
 }
+
 </script>
 </html>
