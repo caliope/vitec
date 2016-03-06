@@ -280,11 +280,22 @@ function redibujar_main (id_query, tab) {
     		w2ui.main_layout.content('main', html); 
     	});
     } else if (tab == 'tab1') {
-        var html_analisis = ''+
-            '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
-            '  <h1 style=" text-align: center;">Desplegar Resultados de ID '+id_query+'</h1>'+
-            '</div>';
-        w2ui['main_layout'].content('main', html_analisis);
+        $.get('/resultados.php', { 'id': id_query})
+        .done(function (resultados){
+            var registros = '';
+            $.each(resultados, function(index, val) {
+                 registros += '<br><div> \
+                    <div class="titulo"><a href="'+val.url+'" target="_blank">'+val.titulo+'</a></div> \
+                    <div class="extracto">'+val.extracto+'</div> \
+                    <div class="pie">Año: '+val.anio+' Autores: '+JSON.stringify(val.autores)+'</div> \
+                 </div>';
+            });
+            var html_analisis = ''+
+                '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
+                '  <h1 style=" text-align: center;"> Titulo Consulta</h1>'+registros+
+                '</div>';
+            w2ui['main_layout'].content('main', html_analisis);
+        });
     } else if (tab == 'tab2') {
         if (w2ui.datos_anio != undefined) {
             w2ui.datos_anio.destroy();
