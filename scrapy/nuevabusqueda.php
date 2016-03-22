@@ -7,17 +7,28 @@
 		if (isset($_SESSION['usuario'])) {
 			if (isset($_GET['query'])) {
 				$query = $_GET["query"];
-				$consulta = array( 
+ 				$consulta = array( 
 					"query"=>$query,
 					"campos"=> array("_id", "anio", "sitio", "tipo", "cid", "url", "fuente", "citado", "versiones", "extracto", "titulo", "autores", "query"),
-					"mail" => $_SESSION['usuario']
+					"mail" => $_SESSION['usuario'],
+					"totalRegistros" => $_GET['totalregistros'],
+					"traerRegistros" => $_GET['registros'],
 				);
 			    $mongo = new MongoClient();
 			    $db = $mongo->vitec;
 			    $coleccion = $db->consultas;
 			    $coleccion->insert($consulta);
 			    $id= (string)$consulta['_id'];
-				$comando = "scrapy crawl goosch -a query='$query' -a inicio=0 -a final=200 -a id_query=$id";
+			    $query .= "&as_vis=" . (string)$_GET['as_vis'];
+			    $query .= "&as_sdt=" . (string)$_GET['as_sdt'];
+			    $fin = 300;
+			    if (isset($_GET['as_ylo'])) {
+			     	$query .= "&as_ylo=" . (string)$_GET['as_ylo'];
+				    if ($fin > $_GET['as_ylo']) {
+				    	$fin = $_GET['as_ylo'];
+				    }
+			     }  
+				$comando = "scrapy crawl goosch -a query='$query' -a inicio=0 -a final=$fin -a id_query=$id";
 				system($comando, $retorno);
 				if (!$retorno) {
 					$coleccion1 = $db->resultado;

@@ -19,6 +19,8 @@
 					$consulta = array();
 					$consulta['id'] = $id;
 					$consulta['text'] = $valor['query'];
+					$consulta['totalRegistros'] = $valor['totalRegistros'];
+					$consulta['traerRegistros'] = $valor['traerRegistros'];
 					$items[] = $consulta;
 				}	
 	    	}

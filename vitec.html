@@ -284,15 +284,20 @@ function redibujar_main (id_query, tab) {
         .done(function (resultados){
             var registros = '';
             $.each(resultados, function(index, val) {
-                 registros += '<br><div> \
-                    <div class="titulo"><a href="'+val.url+'" target="_blank">'+val.titulo+'</a></div> \
+                var enlace = "";
+                if (val.url !== "") {
+                    enlace = '<a href="'+val.url+'" target="_blank">';
+                };
+                registros += '<br><div> \
+                    <div class="titulo">'+enlace+' '+val.titulo+'</a></div> \
+                    <div class="tipo">Tipo: '+val.tipo+'</div> \
                     <div class="extracto">'+val.extracto+'</div> \
                     <div class="pie">Año: '+val.anio+' Autores: '+JSON.stringify(val.autores)+'</div> \
-                 </div>';
+                </div>';
             });
             var html_analisis = ''+
                 '<div id="estadisticas" style="width: 80%; margin: 0 auto">'+
-                '  <h1 style=" text-align: center;"> Titulo Consulta</h1>'+registros+
+                '  <h1 style=" text-align: center;">'+w2ui.tabla.get(w2ui.tabla.getSelection()).text+'</h1>'+registros+
                 '</div>';
             w2ui['main_layout'].content('main', html_analisis);
         });
@@ -618,36 +623,98 @@ function crear_consulta () {
         $().w2form({
             name: 'crear_consulta_form',
             style: 'border: 0px; background-color: transparent;',
-            formHTML: 
-                '<div class="w2ui-page page-0"> \
-                    <div class="w2ui-field"> \
-                        <label>Consulta:</label> \
-                        <div> \
-                           <input name="consulta" type="text" maxlength="100" style="width: 450px"/> \
-                        </div> \
-                    </div> \
-                </div> \
-                <div class="w2ui-buttons"> \
-                    <button class="btn" name="cancel">Cancelar</button> \
-                    <button class="btn" name="crear">Crear</button> \
-                </div>',
             fields: [
-                { field: 'consulta', type: 'text', required: true }
+                { field: 'consulta', type: 'text', required: true, html: { caption: 'Consulta', page: 0, attr: 'style="width: 450px"'} },
+                { field: 'avanzada', type: 'checkbox', html: { caption: 'Avanzada', page: 0 } },
+                { field: 'citas', type: 'checkbox', html: { caption: 'Incluir Citas', page: 1 } },
+                { field: 'patentes', type: 'checkbox', html: { caption: 'Incluir Patentes', page: 1 } },
+                { field: 'desde', type: 'int', html: { caption: 'Desde año', page: 1 }, options: { autoFormat: false } },
+                { field: 'registros', type: 'int', required: true, html: { caption: 'Recuperar', page: 2}, options: { autoFormat: false } }
             ],
+            record: {
+                citas: true,
+                patentes:true,
+                records: ''
+            },
             actions: {
-                "cancel": function () { w2popup.close(); },
-                "crear": function () { 
+                "Cancel": function () { w2popup.close(); },
+                "Siguiente": function () { 
+                            var pagina = w2ui.crear_consulta_form.page + 1;
+                            if (pagina > 2) { pagina = 0};
+                            if (w2ui.crear_consulta_form.page === 0 && !w2ui.crear_consulta_form.record.avanzada ) {
+                                pagina += 1; 
+                            };
+                            w2ui.crear_consulta_form.goto(pagina); 
+                            if ( pagina === 2) { 
+                                var datosStr = '{ "query": "' + this.record.consulta;
+                                if (this.record.citas) { 
+                                    datosStr += '", "as_vis": 0'; 
+                                } else { 
+                                    datosStr += '", "as_vis": 1';
+                                };
+                                if (this.record.patentes) {
+                                    datosStr += ', "as_sdt": 0.5'; 
+                                } else{
+                                    datosStr += ', "as_sdt": 1.5'; 
+                                };
+                                if (this.record.desde !== undefined) {
+                                   datosStr += ', "as_ylo": ' + this.record.desde; 
+                                };
+                                datosStr += " }";
+                                datos = JSON.parse(datosStr);
+                                w2popup.lock('', true);
+                                $.get('/cmds/num_resultados.php', datos)
+                                .done(function (numResultados) {
+                                    w2popup.unlock();
+                                    var texto = '<div style="text-align: -moz-center;"> \
+                                                    <br> \
+                                                    <p>Esta consulta devuelve aproximadamente \
+                                                    '+ numResultados.registros + ' registros.</p> \
+                                                    <p>Cuántos desea recuperar?</p> \
+                                                    <br> \
+                                                </div>';
+                                    $(texto).insertBefore("div.w2ui-page:nth-child(5) > div:nth-child(1)");
+                                    w2ui.crear_consulta_form.record.totalRegistros = numResultados.registros;
+                                    w2ui.crear_consulta_form.record.registros = numResultados.registros;
+                                    $("#registros").val(numResultados.registros);
+                                });
+                                $("[name='Crear']").show(); 
+                            } else {
+                                $("[name='Crear']").hide();
+                            };
+                        },
+                "Crear": function () { 
                             this.validate();
+                            //w2popup.lock('', true);
+                            var datosStr = '{ "query": "' + this.record.consulta;
+                            if (this.record.citas) {
+                                datosStr += '", "as_vis": 0'; 
+                            } else { 
+                                datosStr += '", "as_vis": 1';
+                            };
+                            if (this.record.patentes) {
+                                datosStr += ', "as_sdt": 0.5'; 
+                            } else{
+                                datosStr += ', "as_sdt": 1.5'; 
+                            };
+                            if (this.record.desde !== "") {
+                                datosStr += ', "as_ylo": ' + this.record.desde; 
+                            };
+                            datosStr += ', "totalregistros": '+ this.record.totalRegistros;
+                            datosStr += ', "registros": '+ this.record.registros +' }';
+                            console.log(datosStr);
+                            datos = JSON.parse(datosStr);
+                            console.log(datos);
                             w2popup.lock('Creando consulta ...', true);
                             $.get(
                                 '/scrapy/nuevabusqueda.php', 
-                                {	query: this.record.consulta 
-                                }, 
+                                datos, 
                                 function(data, textStatus, xhr) {
                                     creaTabla();
                                     w2popup.unlock();
                                     w2popup.close();
                             });
+                            w2ui.crear_consulta_form.clear();
                           },
             }
         });
@@ -670,6 +737,7 @@ function crear_consulta () {
         onOpen: function (event) {
             event.onComplete = function () {
                 $('#w2ui-popup #form').w2render('crear_consulta_form');
+                $("[name='Crear']").hide();
             }
         }
     });
@@ -734,9 +802,10 @@ function creaTabla () {
 		w2ui['main_layout'].content('left', w2ui['tabla']);
         w2ui['main_layout'].showTabs('main');
         w2ui['main_layout'].refresh();
-        var registro = w2ui['tabla'].get(1);
+        var registro = w2ui.tabla.get(1);
         $(document).data('idQuery', registro.id);
         redibujar_main($(document).data('idQuery'), 'tab0');
+        w2ui.tabla.click(1);
     });
 }
 

@@ -1,6 +1,7 @@
 .tabla_datos {
   border-collapse: collapse;
   font: normal 12px verdana, arial, helvetica, sans-serif;
+  width: 60%;
 }
 
 .tabla_datos th{

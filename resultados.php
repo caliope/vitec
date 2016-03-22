@@ -17,7 +17,7 @@
 	    } else {
 	    	$coleccion = $db->resultado;
 	    	$filtro = array( 'query' => $id );
-	    	$cursor = $coleccion->find($filtro); 
+	    	$cursor = $coleccion->find($filtro)->sort(array('_id' => 1)); 
 		    $items = array();
 			foreach ($cursor as $documento) {
 				$documento['_id'] = (string)$documento['_id']; 
