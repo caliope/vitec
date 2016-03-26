@@ -5,7 +5,7 @@ class gooschNResultadosSpider(scrapy.Spider):
 
     def __init__(self, query=None, *args, **kwargs):
         super(gooschNResultadosSpider, self).__init__(*args, **kwargs)
-        self.start_urls = ["https://scholar.google.com/scholar?q=%s" % (query)]
+        self.start_urls = ["https://scholar.google.com/scholar?hl=es&q=%s" % (query)]
 
     def parse(self, response):
         resultados = response.xpath('string(.//div[@id="gs_ab_md"])').extract()

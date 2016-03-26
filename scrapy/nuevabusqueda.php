@@ -21,7 +21,10 @@
 			    $id= (string)$consulta['_id'];
 			    $query .= "&as_vis=" . (string)$_GET['as_vis'];
 			    $query .= "&as_sdt=" . (string)$_GET['as_sdt'];
-			    $fin = 300;
+			    $fin = 200;
+			    if ($_GET['registros'] < $fin) {
+			    	$fin = $_GET['registros'];
+			    }
 			    if (isset($_GET['as_ylo'])) {
 			     	$query .= "&as_ylo=" . (string)$_GET['as_ylo'];
 				    if ($fin > $_GET['as_ylo']) {
