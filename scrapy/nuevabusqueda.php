@@ -6,39 +6,52 @@
 		session_start();
 		if (isset($_SESSION['usuario'])) {
 			if (isset($_GET['query'])) {
+				/*
+				 * Inserta el Query en la colección de consultas con los campos de usuario, campos, registros, etc. 
+				 */
 				$query = $_GET["query"];
+				$queryCompleto = $query;
+			    $queryCompleto .= "&as_vis=" . (string)$_GET['as_vis'];
+			    $queryCompleto .= "&as_sdt=" . (string)$_GET['as_sdt'];
+			    $fin = 200;
+			    if ($_GET['registros'] < $fin) {
+			    	$fin = $_GET['registros'];
+			    }
+			    if (isset($_GET['as_ylo'])) {
+			     	$queryCompleto .= "&as_ylo=" . (string)$_GET['as_ylo'];
+			    }
+				if ($fin > $_GET['registros']) {
+				  	$fin = $_GET['registros'];
+				}  
  				$consulta = array( 
-					"query"=>$query,
+					"query" => $query,
+					"queryCompleto" => $queryCompleto,
 					"campos"=> array("_id", "anio", "sitio", "tipo", "cid", "url", "fuente", "citado", "versiones", "extracto", "titulo", "autores", "query"),
 					"mail" => $_SESSION['usuario'],
-					"totalRegistros" => $_GET['totalregistros'],
-					"traerRegistros" => $_GET['registros'],
+					"totalRegistros" => (integer)$_GET['totalregistros'],
+					"traerRegistros" => (integer)$_GET['registros'],
 				);
 			    $mongo = new MongoClient();
 			    $db = $mongo->vitec;
 			    $coleccion = $db->consultas;
 			    $coleccion->insert($consulta);
 			    $id= (string)$consulta['_id'];
-			    $query .= "&as_vis=" . (string)$_GET['as_vis'];
-			    $query .= "&as_sdt=" . (string)$_GET['as_sdt'];
-			    $fin = 200;
-			    if ($_GET['registros'] < $fin) {
-			    	$fin = $_GET['registros'];
-			    }
-			    if (isset($_GET['as_ylo'])) {
-			     	$query .= "&as_ylo=" . (string)$_GET['as_ylo'];
-				    if ($fin > $_GET['as_ylo']) {
-				    	$fin = $_GET['as_ylo'];
-				    }
-			     }  
-				$comando = "scrapy crawl goosch -a query='$query' -a inicio=0 -a final=$fin -a id_query=$id";
+			    /*
+			     *
+			     * Se envía la consulta al crawler y se actualiza el Documento de en la colección Consultas
+			     * con los registros recuperados.
+			     * 
+			     */
+				$comando = "scrapy crawl goosch -a query='$queryCompleto' -a inicio=0 -a final=$fin -a id_query=$id";
 				system($comando, $retorno);
 				if (!$retorno) {
 					$coleccion1 = $db->resultado;
 					$contador = $coleccion1->count(array('query' => $id));
+					$restante = (integer)$_GET['registros'] - $contador;
 					$consulta = array(
 						'$set'=> array(
 						'contador' => $contador, 
+						'restante' => $restante,
 					));
 					$coleccion->update(array('_id' => new MongoId($id)), $consulta);
 					$resultado = array(

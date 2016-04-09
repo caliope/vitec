@@ -1,0 +1,4 @@
+March 29, 2016, 12:05 pm
+March 29, 2016, 12:05 pm
+scrapy crawl goosch -a query='energía del biogas&as_vis=1&as_sdt=0.5' -a inicio=200 -a final=300 -a id_query=56f955cb7f8b9a910bdffdd1
+scrapy crawl goosch -a query='seti&as_vis=1&as_sdt=0.5' -a inicio=200 -a final=350 -a id_query=56f946947f8b9a7a098b4567

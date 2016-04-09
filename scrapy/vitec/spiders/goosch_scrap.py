@@ -13,6 +13,7 @@ class GooschSpider(scrapy.Spider):
 
     def __init__(self, query=None, inicio=0, final=10, id_query="", *args, **kwargs):
         super(GooschSpider, self).__init__(*args, **kwargs)
+        # Esta consulta por defecto utilza la interfaz en espaniol y trae los resultados en espaniol 
         self.start_urls = ["https://scholar.google.com/scholar?start=%s&lr=lang_es&q=%s&hl=es" % (inicio, query)]
         self.fin = int(final)
         self.query = id_query
